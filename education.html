@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script> 
+</head>
+<body>
+    <svg width="1500" height="1500"></svg>
+    <script>
+        var marge = {top:60, bottom:60, left:60, right:60};
+        var svg = d3.select("svg");
+        var width = svg.attr("width") - marge.left - marge.right;
+        var height = svg.attr("height") - marge.top - marge.bottom;
+        var g = svg.append("g")
+            .attr("transform", "translate(" + marge.left + "," + marge.top + ")");
+
+        // 准备数据
+        var nodes = [
+        {name:"伦敦帝国理工学院数据可视化小组",id: 1},
+    		{name:"德国斯图加特大学可视化研究中心",id: 2},
+    		{name:"维也纳科技大学可视计算与人机交互中心",id: 3},
+    		{name:"瑞典皇家理工学院The Visualization Studio",id: 4},
+    		{name:"苏黎世联邦理工学院计算机视觉实验室",id: 5},
+    		{name:"慕尼黑工业大学计算机视觉组",id: 6},
+    		{name:"代尔夫特理工大学可视化与交互系统研究所",id: 7},
+    		{name:"清华大学计算机辅助设计图形学与可视化研究所",id: 8},
+    		{name:"浙江大学计算机辅助设计与图形学国家重点实验室",id: 9},
+            {name:"天津大学计算机图形图像与可视计算实验室",id: 10},
+            {name:"北京大学智能学院可视化与可视分析实验室",id: 11},
+            {name:"同济大学智能大数据可视化实验室",id: 12},
+            {name:"北京科技大学人工智能与三维可视化团队",id: 13},
+            {name:"武汉纺织大学融媒体背景下信息可视化传播设计研究团队",id: 14},
+            {name:"加州大学伯克利分校计算机科学部",id: 15},
+            {name:"哈佛大学视觉计算组",id: 16},
+            {name:"佐治亚大学可视化分析实验室",id: 17},
+            {name:"卡内基梅隆大学可视化研究中心",id: 18},
+            {name:"圣母大学可视化实验室",id: 19},
+            {name:"伊利诺伊大学芝加哥分校的电子可视化实验室",id: 20},
+            {name:"斯坦福大学可视化组",id: 21},
+        ];
+
+        var edges = [
+        {source:1,target:8,relation:"",value:1.3},
+    		{source:1,target:13,relation:"",value:1},
+    		{source:5,target:15,relation:"",value:1},
+    		{source:5,target:6,relation:"",value:1},
+    		{source:8,target:13,relation:"",value:2},
+    		{source:2,target:14,relation:"",value:0.9},
+    		{source:6,target:14,relation:"",value:1},
+    		{source:9,target:12,relation:"",value:1.6},
+    		{source:10,target:9,relation:"",value:0.7},
+    		{source:8,target:11,relation:"",value:2},
+            {source:12,target:18,relation:"",value:2},
+            {source:12,target:9,relation:"",value:2},
+            {source:15,target:21,relation:"",value:2},
+            {source:16,target:5,relation:"",value:2},
+            {source:21,target:15,relation:"",value:2},
+    		
+        ];
+
+        // 设置一个颜色比例尺，为了让不同的扇形呈现不同的颜色
+        var colorScale = d3.scaleOrdinal()
+            .domain(nodes.map(function(d) { return d.id; })) // 使用节点的 id 作为域
+            .range(d3.schemeCategory10);
+
+        // 新建一个力导向图
+        var forceSimulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function(d) { return d.id; })) // 使用 id 函数来指定节点的唯一标识
+            .force("charge", d3.forceManyBody())
+            .force("center", d3.forceCenter().x(width / 2).y(height / 2))
+            .force("collision", d3.forceCollide().radius(function(d) { return 20; })); 
+        // 初始化节点位置
+        nodes.forEach(function(node) {
+            node.x = Math.random() * width;
+            node.y = Math.random() * height;
+        });
+
+        // 初始化力导向图，也就是传入数据
+        forceSimulation.nodes(nodes)
+            .on("tick", ticked);
+
+        // 生成边数据
+        forceSimulation.force("link")
+            .links(edges)
+            .distance(function(d) {
+                return d.value * 200;
+            });
+
+        // 绘制边
+        var links = g.append("g")
+            .selectAll("line")
+            .data(edges)
+            .enter()
+            .append("line")
+            .attr("stroke", function(d, i) {
+                return colorScale(i);
+            })
+            .attr("stroke-width", 1);
+
+        var linksText = g.append("g")
+            .selectAll("text")
+            .data(edges)
+            .enter()
+            .append("text")
+            .text(function(d) {
+                return d.relation;
+            });
+
+        // 绘制节点
+        var gs = g.selectAll(".circleText")
+            .data(nodes)
+            .enter()
+            .append("g")
+            .call(d3.drag()
+                .on("start", started)
+                .on("drag", dragged)
+                .on("end", ended));
+
+        gs.append("circle")
+            .attr("r", 20)
+            .attr("fill", function(d, i) {
+                return colorScale(d.id);
+            });
+
+        gs.append("text")
+            .attr("x", -10)
+            .attr("y", -20)
+            .attr("dy", 10)
+            .text(function(d) {
+                return d.name;
+            });
+
+            function ticked() {
+            links
+                .attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+
+            linksText
+                .attr("x", function(d) { return (d.source.x + d.target.x) / 2; })
+                .attr("y", function(d) { return (d.source.y + d.target.y) / 2; });
+
+            gs.attr("transform", function(d) {
+                // 限制节点位置
+                d.x = Math.max(marge.left + 20, Math.min(width - 20, d.x));
+                d.y = Math.max(marge.top + 20, Math.min(height - 20, d.y));
+                return "translate(" + d.x + "," + d.y + ")";
+            });
+        }
+
+        function started(d) {
+            if (!d3.event.active) {
+                forceSimulation.alphaTarget(0.8).restart();
+            }
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(d) {
+            d.fx = d3.event.x;
+            d.fy = d3.event.y;
+        }
+
+        function ended(d) {
+            if (!d3.event.active) {
+                forceSimulation.alphaTarget(0);
+            }
+            d.fx = null;
+            d.fy = null;
+        }
+    </script>
+</body>
+</html>
